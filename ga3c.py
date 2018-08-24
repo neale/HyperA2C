@@ -1,7 +1,8 @@
 import args
-import models
+import models_small as models
+#import models
 import hypera2c as H
-import utils_xai as utils
+import utils
 from atari_data import MultiEnvironment
 
 import warnings
@@ -149,8 +150,7 @@ def cost_func(args, values, logps, actions, rewards):
 
     entropy_loss = -(-logps * torch.exp(logps)).sum().cuda() # encourage lower entropy
     # print ('policy: ', policy_loss, 'value loss: ', value_loss, 'ent loss: ', entropy_loss)
-    loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
-    return loss
+    return (policy_loss, value_loss, entropy_loss)
 
 
 def load_optim(args, HyperNet):
@@ -159,7 +159,7 @@ def load_optim(args, HyperNet):
     if args.test: 
         lr_e, lr_d, lr_g = 0, 0, 0
     else:
-        lr_e, lr_d, lr_g = 5e-2, 5e-3, 1e-4
+        lr_e, lr_d, lr_g = 5e-4, 5e-4, 5e-4
     for p in HyperNet.generators:
         gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.9,.999), weight_decay=w))
 
@@ -203,6 +203,7 @@ def train(args, envs, model, optim):
     episode_length = np.zeros(args.batch_size)
     epr, eploss = np.zeros(args.batch_size), np.zeros(args.batch_size)
     values, logps, actions, rewards = [], [], [], []
+    p_loss, e_loss, v_loss = 0., 0., 0.
     print ('=> starting training')
     i = 0
     if args.test:
@@ -241,7 +242,8 @@ def train(args, envs, model, optim):
                 elapsed = time.strftime("%Hh %Mm %Ss", timenow)
                 printlog(args,'frames {:.1f}M, mean epr {:.2f}, run loss {:.2f}'
                     .format(num_frames/1e6, info['run_epr'].item(), info['run_loss'].item()))
-                print (action.view(action.numel()))
+                print ('Actions: ', action.view(action.numel()).detach())
+                print ("losses: ", p_loss.item(), v_loss.item(), e_loss.item())
                 last_disp_time = time.time()
 
             for j, d in enumerate(done):
@@ -269,7 +271,8 @@ def train(args, envs, model, optim):
             actions = torch.cat(actions, dim=1)
             logps = torch.stack(logps, dim=1)
             rewards = np.transpose(np.asarray(rewards))
-            loss = cost_func(args, values, logps, actions, rewards)
+            p_loss, v_loss, e_loss = cost_func(args, values, logps, actions, rewards)
+            loss = p_loss + 0.5 * v_loss + 0.01 * e_loss
             # print ('A2C Loss: ', loss)
             eploss += loss.item()
             # print ('=> Updating Optimizer')

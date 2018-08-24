@@ -3,7 +3,6 @@ import torchvision
 import torch.distributions.multivariate_normal as N
 
 from torch import nn
-from torch import autograd
 from torch import optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
@@ -11,21 +10,7 @@ from torchvision import datasets, transforms
 import numpy as np
 
 import netdef
-import utils_xai as utils
-
-
-def sample_x(args, gen, id, grad=True):
-    if type(gen) is list:
-        res = []
-        for i, g in enumerate(gen):
-            data = next(g)
-            x = (torch.tensor(data, requires_grad=grad)).cuda()
-            res.append(x.view(*args.shapes[i]))
-    else:
-        data = next(gen)
-        x = torch.tensor(data, requires_grad=grad).cuda()
-        res = x.view(*args.shapes[id])
-    return res
+import utils
 
 
 def sample_z(args, grad=True):
@@ -33,12 +18,17 @@ def sample_z(args, grad=True):
     return z
 
 
-def sample_z_like(shape, scale=1., grad=True):
-    mean = torch.zeros(shape[1])
-    cov = torch.eye(shape[1])
+def create_d(shape):
+    mean = torch.zeros(shape)
+    cov = torch.eye(shape)
     D = N.MultivariateNormal(mean, cov)
-    z = D.sample((shape[0],)).cuda()
-    return scale * z
+    return D
+
+
+def sample_d(D, shape, scale=1., grad=True):
+    z = scale * D.sample((shape,)).cuda()
+    z.requires_grad=grad
+    return z
 
 
 def batch_zero_grad(nets):
@@ -68,9 +58,9 @@ def pretrain_loss(encoded, noise):
     mean_loss = F.mse_loss(mean_z, mean_e)
 
     cov_z = torch.matmul((noise-mean_z).transpose(0, 1), noise-mean_z)
-    cov_z /= 1999
+    cov_z /= 999
     cov_e = torch.matmul((encoded-mean_e).transpose(0, 1), encoded-mean_e)
-    cov_e /= 1999
+    cov_e /= 999
     cov_loss = F.mse_loss(cov_z, cov_e)
     return mean_loss, cov_loss
 
@@ -79,10 +69,12 @@ def pretrain_encoder(args, E, Optim):
 
     j = 0
     final = 100.
-    e_batch_size = 2000
-    for j in range(3000):
-        x = sample_z_like((e_batch_size, args.ze))
-        z = sample_z_like((e_batch_size, args.z))
+    e_batch_size = 1000
+    x_dist = create_d(args.ze)
+    z_dist = create_d(args.z)
+    for j in range(1000):
+        x = sample_d(x_dist, e_batch_size)
+        z = sample_d(z_dist, e_batch_size)
         codes = E(x)
         for i, code in enumerate(codes):
             code = code.view(e_batch_size, args.z)
@@ -103,8 +95,10 @@ def pretrain_encoder(args, E, Optim):
 
 def get_policy_weights(args, HyperNet, Optim):
     # generate embedding for each layer
+    x_dist = create_d(args.ze)
+    z_dist = create_d(args.z)
     batch_zero_grad([HyperNet.encoder] + HyperNet.generators)
-    z = sample_z_like((args.batch_size, args.ze))
+    z = sample_d(x_dist, args.batch_size)
     codes = HyperNet.encoder(z)
     layers = []
     # decompress to full parameter shape
@@ -114,7 +108,7 @@ def get_policy_weights(args, HyperNet, Optim):
     free_params([HyperNet.adversary])
     frozen_params([HyperNet.encoder] + HyperNet.generators)
     for code in codes:
-        noise = sample_z_like((args.batch_size, args.z))
+        noise = sample_d(z_dist, args.batch_size)
         d_real = HyperNet.adversary(noise)
         d_fake = HyperNet.adversary(code.contiguous())
         d_real_loss = -1 * torch.log((1-d_real).mean())
