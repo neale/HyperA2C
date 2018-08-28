@@ -40,14 +40,6 @@ def open_net_dict(d, model, optim):
     optim.load_state_dict(d['optimizer'])
     return model, optim
 
-def open_net_dict_test(d, model, optim):
-    print (model.state_dict()['linear1.weight'])
-    model.load_state_dict(d['state_dict'])
-    print (model.state_dict()['linear1.weight'])
-    optim.load_state_dict(d['optimizer'])
-    return model, optim
-
-
 
 def plot_histogram(x, save=False, id=None):
     if save is True:

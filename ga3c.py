@@ -73,7 +73,7 @@ class HyperNetwork(object):
             g1.load_state_dict(g2.state_dict())
 
     def save_state(self, optim, num_frames, mean_reward):
-        path = 'hypermodels/{}/agent_{}.pt'.format(self.env, self.exp)
+        path = 'models/{}/agent_{}.pt'.format(self.env, self.exp)
         if self.scratch:
             path = '/scratch/eecs-share/ratzlafn/' + path
         Hypernet_dict = {
@@ -98,7 +98,7 @@ class HyperNetwork(object):
 
         opts = [optim['optimG'][0], optim['optimG'][1], optim['optimG'][2],
                 optim['optimG'][3], optim['optimG'][4], optim['optimG'][5]]
-        path = 'models/HyperGAN/atari/{}/agent_{}.pt'.format(self.env, self.exp)
+        path = 'models/{}/agent_{}.pt'.format(self.env, self.exp)
         if self.scratch:
             path = '/scratch/eecs-share/ratzlafn/' + path
         print ('loading agent from {}'.format(path))
@@ -106,24 +106,10 @@ class HyperNetwork(object):
         
         self.encoder, optim['optimE'] = utils.open_net_dict(
                 HN['E'], self.encoder, optim['optimE'])
-        print ('adv')
-        print (self.adversary.state_dict()['linear1.weight'])
-        #objectD = utils.open_net_dict(HN['D'], self.adversary, optim['optimD'])
-        self.adversary, optim['optimD'] = utils.open_net_dict_test(
+        self.adversary, optim['optimD'] = utils.open_net_dict(
                 HN['D'], self.adversary, optim['optimD'])
-        #self.adversary, optim['optimD'] = objectD
-        print (self.adversary.state_dict()['linear1.weight'])
-        print ('gen1')
-        #print (self.generators[0].state_dict()['linear1.weight'])
-        self.generators[0], optim['optimG'][0] = utils.open_net_dict_test(
-                HN['W1'], self.generators[0], optim['optimG'][0])
-        #print (self.generators[0].state_dict()['linear1.weight'])
         for i in range(6):
-            print (i)
-            print (nets[i].state_dict()['linear1.weight'])
             nets[i], opts[i] = utils.open_net_dict(HN[layers[i]], nets[i], opts[i])
-            print (nets[i].state_dict()['linear1.weight'])
-
         num_frames = HN['num_frames']
         mean_reward = HN['mean_reward']
         return optim, num_frames, mean_reward
@@ -135,7 +121,7 @@ def load_optim(args, HyperNet):
     if args.test: 
         lr_e, lr_d, lr_g = 0, 0, 0
     else:
-        lr_e, lr_d, lr_g = 5e-4, 5e-4, 5e-3
+        lr_e, lr_d, lr_g = 1e-4, 1e-4, 1e-4
     for p in HyperNet.generators:
         gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.9,.999), weight_decay=w))
 
@@ -147,25 +133,6 @@ def load_optim(args, HyperNet):
         'optimG': gen_optim,
     }
     return Optim
-
-
-args = args.load_args()
-args.save_dir = '{}/'.format(args.env.lower()) 
-if args.render:  
-    args.processes = 1 
-    args.test = True 
-if args.test:  
-    args.lr = 0
-args.n_actions = gym.make(args.env).action_space.n
-if not os.path.exists(args.save_dir):
-    os.makedirs(args.save_dir) 
-# print ('=> Multienvironment settings')
-envs = MultiEnvironment(args.env, args.batch_size, args.frame_skip)
-torch.manual_seed(args.seed)
-torch.cuda.device(args.gpu)
-hypernet = HyperNetwork(args)
-print (hypernet)
-optim = load_optim(args, hypernet)
 
 
 def FuncPolicy(args, W, state):
@@ -238,7 +205,6 @@ def train_hyperagent():
         hypernet.set_test_mode()
         envs.set_monitor()
         envs.envs[0].reset()
-    print (hypernet)
     while info['frames'][0] <= 8e7 or args.test: 
         i += 1
         episode_length += 1
@@ -272,8 +238,6 @@ def train_hyperagent():
                     .format(num_frames/1e6, info['run_epr'].item(), info['run_loss'].item()))
                 ent = (-logp * F.softmax(logit)).sum(1, keepdim=True) 
                 print ('Actions: ', action.view(action.numel()).detach())
-                print ('Entropy: ', ent.detach())
-                print ("losses: ", p_loss.item(), v_loss.item(), e_loss.item())
                 last_disp_time = time.time()
 
             for j, d in enumerate(done):
@@ -311,9 +275,27 @@ def train_hyperagent():
             values, logps, actions, rewards = [], [], [], []
             
 
-def main():
-    train_hyperagent()
 
 
 if __name__ == "__main__":
-    main()
+
+    args = args.load_args()
+    args.save_dir = '{}/'.format(args.env.lower()) 
+    if args.render:  
+        args.processes = 1 
+        args.test = True 
+    if args.test:  
+        args.lr = 0
+    if args.scratch:
+        print ('training on server; saving to /scratch/eecs-share')
+    args.n_actions = gym.make(args.env).action_space.n
+    if not os.path.exists(args.save_dir):
+        os.makedirs(args.save_dir) 
+# print ('=> Multienvironment settings')
+    envs = MultiEnvironment(args.env, args.batch_size, args.frame_skip)
+    torch.manual_seed(args.seed)
+    torch.cuda.device(args.gpu)
+    hypernet = HyperNetwork(args)
+    optim = load_optim(args, hypernet)
+    train_hyperagent()
+
