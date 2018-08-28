@@ -125,12 +125,14 @@ def cost_func(args, values, logps, actions, rewards):
 
     entropy_loss = -(-logps * torch.exp(logps)).sum() # encourage lower entropy
     loss = policy_loss + 0.5 * value_loss + 0.01 * entropy_loss
-    print (loss)
+    print (loss.grad)
     return loss
 
 
 def train():
     print("Training has started")
+    if 'agent' in globals():
+        print (agent)
     info = {k : torch.DoubleTensor([0]).share_memory_() for k in ['run_epr', 'episodes', 'frames']}
     info['frames'] += agent.try_load(args.save_dir)*1e6
     if int(info['frames'][0]) == 0: printlog(args,'', end='', mode='w') # clear log file
@@ -171,6 +173,10 @@ def train():
                 printlog(args, 'time {}, episodes {:.0f}, frames {:.1f}M, current reward {}'
                     .format(elapsed, info['episodes'][0], num_frames/1e6, epr[0]))
                 last_disp_time = time.time()
+                print (F.softmax(logit))
+                print (logp)
+                ent = (-logp * F.softmax(logit)).sum(1, keepdim=True) 
+                print ('entropy: ', ent)
             for j, d in enumerate(done):
                 if d:
                     info['episodes'] += 1
@@ -193,16 +199,18 @@ def train():
 
             optimizer.zero_grad()  
             loss = cost_func(args, torch.cat(values, dim=1), torch.stack(logps, dim=1), torch.cat(actions, dim=1), np.transpose(np.asarray(rewards)))
+            #print (agent.parameters())
             loss.backward()
+            #print (loss.grad)
+            #for w in agent.parameters():
+            #    print (w.grad.data)
+            #print ([x.grad.data for x in agent.parameters()])
             eploss += loss.data[0]
-            print (eploss, i)
-            try:
-                print (eploss.shape, values.shape)
-            except:
-                pass
             torch.nn.utils.clip_grad_norm(agent.parameters(), 40)
-
+            print ('updating optim')
+            print (agent.state_dict()['conv1.weight'][:2])
             optimizer.step()
+            print (agent.state_dict()['conv1.weight'][:2])
             agent_memory = Variable(agent_memory[0].data).cuda(),  Variable(agent_memory[1].data).cuda()
             values, logps, actions, rewards = [], [], [], []
             for j, d in enumerate(done):

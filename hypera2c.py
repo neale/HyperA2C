@@ -3,7 +3,6 @@ import torchvision
 import torch.distributions.multivariate_normal as N
 
 from torch import nn
-from torch import optim
 from torch.nn import functional as F
 from torchvision import datasets, transforms
 
@@ -36,6 +35,16 @@ def batch_zero_grad(nets):
         module.zero_grad()
 
 
+def batch_zero_optim_hn(optim):
+    optim['optimE'].zero_grad()
+    optim['optimG'][0].zero_grad()
+    optim['optimG'][1].zero_grad()
+    optim['optimG'][2].zero_grad()
+    optim['optimG'][3].zero_grad()
+    optim['optimG'][4].zero_grad()
+    optim['optimG'][5].zero_grad()
+
+
 def batch_update_optim(optimizers):
     for optim in optimizers:
         optim.step()
@@ -65,7 +74,7 @@ def pretrain_loss(encoded, noise):
     return mean_loss, cov_loss
 
 
-def pretrain_encoder(args, E, Optim):
+def pretrain_encoder(args, E, optim):
 
     j = 0
     final = 100.
@@ -81,23 +90,23 @@ def pretrain_encoder(args, E, Optim):
             mean_loss, cov_loss = pretrain_loss(code, z)
             loss = mean_loss + cov_loss
             loss.backward(retain_graph=True)
-        Optim['optimE'].step()
+        optim['optimE'].step()
         E.zero_grad()
-        Optim['optimE'].zero_grad()
+        optim['optimE'].zero_grad()
         print ('Pretrain Enc iter: {}, Mean Loss: {}, Cov Loss: {}'.format(
             j, mean_loss.item(), cov_loss.item()))
         final = loss.item()
         if loss.item() < 0.1:
             print ('Finished Pretraining Encoder')
             break
-    return E, Optim
+    return E, optim
 
 
-def get_policy_weights(args, HyperNet, Optim):
+def get_policy_weights(args, HyperNet, optim):
     # generate embedding for each layer
     x_dist = create_d(args.ze)
     z_dist = create_d(args.z)
-    batch_zero_grad([HyperNet.encoder] + HyperNet.generators)
+    #batch_zero_grad([HyperNet.encoder] + HyperNet.generators)
     z = sample_d(x_dist, args.batch_size)
     codes = HyperNet.encoder(z)
     layers = []
@@ -116,36 +125,28 @@ def get_policy_weights(args, HyperNet, Optim):
         d_real_loss.backward(retain_graph=True)
         d_fake_loss.backward(retain_graph=True)
         d_loss = d_real_loss + d_fake_loss
-    Optim['optimD'].step()
+    optim['optimD'].step()
     free_params([HyperNet.encoder] + HyperNet.generators)
     frozen_params([HyperNet.adversary])
 
-    return layers, HyperNet, Optim
+    return layers, HyperNet, optim
 
 
-def update_hn(args, loss, HyperNet, Optim):
+def update_hn(args, loss, HyperNet, optim):
 
     scaled_loss = (args.beta*loss) #+ z1_loss + z2_loss + z3_loss
     scaled_loss.backward()
-    Optim['optimE'].step()
-    Optim['optimG'][0].step()
+    optim['optimE'].step()
+    optim['optimG'][0].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[0].parameters(), 20)
-    Optim['optimG'][1].step()
+    optim['optimG'][1].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[1].parameters(), 20)
-    Optim['optimG'][2].step()
+    optim['optimG'][2].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[2].parameters(), 20)
-    Optim['optimG'][3].step()
+    optim['optimG'][3].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[3].parameters(), 20)
-    Optim['optimG'][4].step()
+    optim['optimG'][4].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[4].parameters(), 20)
-    Optim['optimG'][5].step()
+    optim['optimG'][5].step()
     torch.nn.utils.clip_grad_norm_(HyperNet.generators[5].parameters(), 20)
-    Optim['optimE'].zero_grad()
-    Optim['optimG'][0].zero_grad()
-    Optim['optimG'][1].zero_grad()
-    Optim['optimG'][2].zero_grad()
-    Optim['optimG'][3].zero_grad()
-    Optim['optimG'][4].zero_grad()
-    Optim['optimG'][5].zero_grad()
-
-    return HyperNet, Optim
+    return HyperNet, optim

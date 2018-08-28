@@ -48,12 +48,17 @@ class NNPolicy(nn.Module): # an actor-critic neural network
         return self.critic_linear(x), self.actor_linear(x)
 
     def try_load(self, save_dir):
-        paths = glob.glob(save_dir + '*.tar') ; step = 0
-        if len(paths) > 0:
-            ckpts = [int(s.split('.')[-2]) for s in paths]
-            ix = np.argmax(ckpts) ; step = ckpts[ix]
-            self.load_state_dict(torch.load(paths[ix]))
-        print("\tno saved models") if step is 0 else print("\tloaded model: {}".format(paths[ix]))
+        paths = glob.glob(save_dir + '*.pt'); 
+        step = 0
+        path = paths[0]
+        #if len(paths) > 0:
+        #    ckpts = [int(s.split('.')[-2]) for s in paths]
+        #    ix = np.argmax(ckpts) ; step = ckpts[ix]
+        #    self.load_state_dict(torch.load(paths[ix]))
+        if step is 0:
+            print("\tno saved models") 
+        else: 
+            print("\tloaded model: {}".format(path))
         return step
 
 class SharedAdam(torch.optim.Adam): # extend a pytorch optimizer so it shares grads across processes
@@ -122,7 +127,7 @@ def train(shared_model, shared_optimizer, rank, args, info):
             info['frames'].add_(1) ; num_frames = int(info['frames'].item())
             if num_frames % 2e6 == 0: # save every 2M frames
                 printlog(args, '\n\t{:.0f}M frames: saved model\n'.format(num_frames/1e6))
-                torch.save(shared_model.state_dict(), args.save_dir+'model.{:.0f}.tar'.format(num_frames/1e6))
+                torch.save(shared_model.state_dict(), args.save_dir+'model.{:.0f}.pt'.format(num_frames/1e6))
 
             if done: # update shared data
                 info['episodes'] += 1

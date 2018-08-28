@@ -12,8 +12,6 @@ import math
 from glob import glob
 from scipy.misc import imsave
 
-
-
 param_dir = './params/sampled/mnist/test1/'
 model_dir = 'encoders/'
 
@@ -41,6 +39,14 @@ def open_net_dict(d, model, optim):
     model.load_state_dict(d['state_dict'])
     optim.load_state_dict(d['optimizer'])
     return model, optim
+
+def open_net_dict_test(d, model, optim):
+    print (model.state_dict()['linear1.weight'])
+    model.load_state_dict(d['state_dict'])
+    print (model.state_dict()['linear1.weight'])
+    optim.load_state_dict(d['optimizer'])
+    return model, optim
+
 
 
 def plot_histogram(x, save=False, id=None):
