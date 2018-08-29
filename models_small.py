@@ -176,15 +176,18 @@ class GeneratorW6(nn.Module):
         for k, v in vars(args).items():
             setattr(self, k, v)
         self.name = 'GeneratorW6'
-        self.linear1 = nn.Linear(self.z, 512)
-        self.linear2 = nn.Linear(512, 800*self.n_actions)
-        self.bn1 = nn.BatchNorm1d(512)
+        self.linear1 = nn.Linear(self.z, 1024)
+        self.linear2 = nn.Linear(1024, 2048)
+        self.linear3 = nn.Linear(2048, 800*self.n_actions)
+        self.bn1 = nn.BatchNorm1d(1024)
+        self.bn2 = nn.BatchNorm1d(2048)
         self.relu = nn.ELU(inplace=True)
 
     def forward(self, x):
         #print ('W4 in : ', x.shape)
         x = self.relu(self.bn1(self.linear1(x)))
-        x = self.linear2(x)
+        x = self.relu(self.bn2(self.linear2(x)))
+        x = self.linear3(x)
         x = x.view(-1, self.n_actions, 800)
         #print ('W4 out: ', x.shape)
         return x

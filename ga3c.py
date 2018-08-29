@@ -1,7 +1,7 @@
 import sys
 import args
-#import models_small as models
-import models
+import models_small as models
+#import models
 import hypera2c as H
 import utils
 from atari_data import MultiEnvironment
@@ -121,9 +121,9 @@ def load_optim(args, HyperNet):
     if args.test: 
         lr_e, lr_d, lr_g = 0, 0, 0
     else:
-        lr_e, lr_d, lr_g = 1e-4, 1e-4, 1e-4
+        lr_e, lr_d, lr_g = 1e-4, 1e-3, 1e-4
     for p in HyperNet.generators:
-        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.9,.999), weight_decay=w))
+        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.5,.999), weight_decay=w))
 
     Optim = { 
         'optimE': Adam(HyperNet.encoder.parameters(), lr=lr_e, betas=(.5,.999),
@@ -238,6 +238,7 @@ def train_hyperagent():
                     .format(num_frames/1e6, info['run_epr'].item(), info['run_loss'].item()))
                 ent = (-logp * F.softmax(logit)).sum(1, keepdim=True) 
                 print ('Actions: ', action.view(action.numel()).detach())
+                print ('Ploss: {}, ELoss: {}, VLoss: {}'.format(p_loss, e_loss, v_loss))
                 last_disp_time = time.time()
 
             for j, d in enumerate(done):

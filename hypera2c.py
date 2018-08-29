@@ -114,6 +114,7 @@ def get_policy_weights(args, HyperNet, optim):
     for (code, gen) in zip(codes, HyperNet.generators):
         layers.append(gen(code).mean(0))
     # Z Adversary 
+    """
     free_params([HyperNet.adversary])
     frozen_params([HyperNet.encoder] + HyperNet.generators)
     for code in codes:
@@ -128,7 +129,7 @@ def get_policy_weights(args, HyperNet, optim):
     optim['optimD'].step()
     free_params([HyperNet.encoder] + HyperNet.generators)
     frozen_params([HyperNet.adversary])
-
+    """
     return layers, HyperNet, optim
 
 
@@ -138,15 +139,15 @@ def update_hn(args, loss, HyperNet, optim):
     scaled_loss.backward()
     optim['optimE'].step()
     optim['optimG'][0].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[0].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[0].parameters(), 20)
     optim['optimG'][1].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[1].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[1].parameters(), 20)
     optim['optimG'][2].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[2].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[2].parameters(), 20)
     optim['optimG'][3].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[3].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[3].parameters(), 20)
     optim['optimG'][4].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[4].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[4].parameters(), 20)
     optim['optimG'][5].step()
-    torch.nn.utils.clip_grad_norm_(HyperNet.generators[5].parameters(), 20)
+    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[5].parameters(), 20)
     return HyperNet, optim
