@@ -1,3 +1,7 @@
 models/
 *.pyc
-
+*.json
+*.mp4
+*.swp
+*.swl
+*.txt
