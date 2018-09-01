@@ -35,7 +35,7 @@ map_gpu = {
         'cuda:6': 'cuda:0',
         'cuda:7': 'cuda:0',
         'cpu': 'cpu',
-}
+        }
 
 class HyperNetwork(object):
     def __init__(self, args):
@@ -52,13 +52,14 @@ class HyperNetwork(object):
                 models.GeneratorW4(args).cuda(),
                 models.GeneratorW5(args).cuda(),
                 models.GeneratorW6(args).cuda()
-        ]
-        
+                ]
+
     def set_test_mode(self):
-        self.encoder.eval()
-        self.adversary.eval()
-        for gen in self.generators:
-            gen.eval()
+        pass
+        #self.encoder.eval()
+        #self.adversary.eval()
+        #for gen in self.generators:
+        #    gen.eval()
 
     def set_train_mode(self):
         self.encoder.train()
@@ -77,17 +78,17 @@ class HyperNetwork(object):
         if self.scratch:
             path = '/scratch/eecs-share/ratzlafn/' + path
         Hypernet_dict = {
-            'E': utils.get_net_dict(self.encoder, optim['optimE']),
-            'D': utils.get_net_dict(self.adversary, optim['optimD']),
-            'W1': utils.get_net_dict(self.generators[0], optim['optimG'][0]),
-            'W2': utils.get_net_dict(self.generators[1], optim['optimG'][1]),
-            'W3': utils.get_net_dict(self.generators[2], optim['optimG'][2]),
-            'W4': utils.get_net_dict(self.generators[3], optim['optimG'][3]),
-            'W5': utils.get_net_dict(self.generators[4], optim['optimG'][4]),
-            'W6': utils.get_net_dict(self.generators[5], optim['optimG'][5]),
-            'num_frames': num_frames,
-            'mean_reward': mean_reward
-        }
+                'E': utils.get_net_dict(self.encoder, optim['optimE']),
+                'D': utils.get_net_dict(self.adversary, optim['optimD']),
+                'W1': utils.get_net_dict(self.generators[0], optim['optimG'][0]),
+                'W2': utils.get_net_dict(self.generators[1], optim['optimG'][1]),
+                'W3': utils.get_net_dict(self.generators[2], optim['optimG'][2]),
+                'W4': utils.get_net_dict(self.generators[3], optim['optimG'][3]),
+                'W5': utils.get_net_dict(self.generators[4], optim['optimG'][4]),
+                'W6': utils.get_net_dict(self.generators[5], optim['optimG'][5]),
+                'num_frames': num_frames,
+                'mean_reward': mean_reward
+                }
         torch.save(Hypernet_dict, path)
         print ('saved agent to {}'.format(path))
 
@@ -95,7 +96,6 @@ class HyperNetwork(object):
         layers = ['W1', 'W2', 'W3', 'W4', 'W5', 'W6']
         nets = [self.generators[0], self.generators[1], self.generators[2],
                 self.generators[3], self.generators[4], self.generators[5]]
-
         opts = [optim['optimG'][0], optim['optimG'][1], optim['optimG'][2],
                 optim['optimG'][3], optim['optimG'][4], optim['optimG'][5]]
         path = 'models/{}/agent_{}.pt'.format(self.env, self.exp)
@@ -103,11 +103,10 @@ class HyperNetwork(object):
             path = '/scratch/eecs-share/ratzlafn/' + path
         print ('loading agent from {}'.format(path))
         HN = torch.load(path)
-        
         self.encoder, optim['optimE'] = utils.open_net_dict(
-                HN['E'], self.encoder, optim['optimE'])
+            HN['E'], self.encoder, optim['optimE'])
         self.adversary, optim['optimD'] = utils.open_net_dict(
-                HN['D'], self.adversary, optim['optimD'])
+            HN['D'], self.adversary, optim['optimD'])
         for i in range(6):
             nets[i], opts[i] = utils.open_net_dict(HN[layers[i]], nets[i], opts[i])
         num_frames = HN['num_frames']
@@ -131,8 +130,13 @@ def load_optim(args, HyperNet):
         'optimD': Adam(HyperNet.adversary.parameters(), lr=lr_d, betas=(.9,.999),
             weight_decay=w),
         'optimG': gen_optim,
-    }
+        }
     return Optim
+
+
+def print_lr(optimizer):
+    for param_group in optimizer.param_groups:
+        print(param_group['lr'])
 
 
 def FuncPolicy(args, W, state):
@@ -205,13 +209,12 @@ def train_hyperagent():
         hypernet.set_test_mode()
         envs.set_monitor()
         envs.envs[0].reset()
-    while info['frames'][0] <= 8e7 or args.test: 
+    while info['frames'][0] <= 8e7 or args.test:
         i += 1
         episode_length += 1
         # get network weights
         weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
         # compute the agent response with generated weights
-        
         value, logit = Fmodel(args, weights, state)
         logp = F.log_softmax(logit, dim=-1)
         # print ('=> updating state')
@@ -235,7 +238,7 @@ def train_hyperagent():
                 timenow = time.gmtime(time.time() - start_time)
                 elapsed = time.strftime("%Hh %Mm %Ss", timenow)
                 printlog(args,'frames {:.1f}M, mean epr {:.2f}, run loss {:.2f}'
-                    .format(num_frames/1e6, info['run_epr'].item(), info['run_loss'].item()))
+                        .format(num_frames/1e6, info['run_epr'].item(), info['run_loss'].item()))
                 ent = (-logp * F.softmax(logit)).sum(1, keepdim=True) 
                 print ('Actions: ', action.view(action.numel()).detach())
                 print ('Ploss: {}, ELoss: {}, VLoss: {}'.format(p_loss, e_loss, v_loss))
@@ -274,7 +277,7 @@ def train_hyperagent():
             H.batch_zero_optim_hn(optim)
             hypernet, optim = H.update_hn(args, loss, hypernet, optim)
             values, logps, actions, rewards = [], [], [], []
-            
+
 
 
 
