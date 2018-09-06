@@ -240,3 +240,8 @@ frames 4.2M, mean epr -20.29, run loss -2166.64
 frames 4.2M, mean epr -20.30, run loss -2197.12
 frames 4.2M, mean epr -20.31, run loss -2224.70
 frames 4.3M, mean epr -20.28, run loss -2207.63
+frames 58.0M, mean epr -20.86, run loss 29712496.91
+frames 58.0M, mean epr 19.01, run loss -225.35
+frames 58.0M, mean epr 19.63, run loss -155.98
+frames 58.0M, mean epr 18.86, run loss -157.10
+frames 58.0M, mean epr 18.86, run loss -157.10

@@ -192,7 +192,7 @@ def saveit(z, model, i):
     torch.save(model.state_dict(), 'sampled_agent_{}.pt'.format(i))
 
 
-def train_hyperagent():
+def train_multihyperagent():
     global hypernet, optim
     info = {k: torch.DoubleTensor([0]).share_memory_() for k in ['run_epr', 
         'run_loss', 'episodes', 'frames']}
@@ -211,7 +211,8 @@ def train_hyperagent():
     
     print ('=> loaded HyperGAN networks')
     state_shape = (args.batch_size, 1, 80, 80)
-    state = torch.tensor(envs.reset()).view(state_shape).cuda() # get first state
+    state1 = torch.tensor(envs1.reset()).view(state_shape).cuda() # get first state
+    state2 = torch.tensor(envs2.reset()).view(state_shape).cuda() # get first state
     start_time = last_disp_time = time.time()
     episode_length = np.zeros(args.batch_size)
     epr, eploss = np.zeros(args.batch_size), np.zeros(args.batch_size)
@@ -221,8 +222,10 @@ def train_hyperagent():
     i = 0
     if args.test:
         hypernet.set_test_mode()
-        envs.set_monitor()
-        envs.envs[0].reset()
+        envs1.set_monitor()
+        envs2.set_monitor()
+        envs1.envs[0].reset()
+        envs2.envs[0].reset()
     
     if args.sample:
         for i in range(1000):
@@ -236,16 +239,20 @@ def train_hyperagent():
         # get network weights
         weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
         # compute the agent response with generated weights
-        value, logit = Fmodel(args, weights, state)
+        value1, logit1 = Fmodel(args, weights, state1)
+        value2, logit2 = Fmodel(args, weights, state2)
         logp = F.log_softmax(logit, dim=-1)
         # print ('=> updating state')
         action = torch.exp(logp).multinomial(num_samples=1).data
-        state, reward, done, _ = envs.step(action)
+        state1, reward1, done1, _ = envs1.step(action)
+        state2, reward2, done2, _ = envs2.step(action)
         if args.render:
             envs.envs[0].render()
 
-        state = torch.tensor(state).view(state_shape).cuda()
-        reward = np.clip(reward, -1, 1)
+        state1 = torch.tensor(state1).view(state_shape).cuda()
+        state2 = torch.tensor(state2).view(state_shape).cuda()
+        reward1 = np.clip(reward1, -1, 1)
+        reward2 = np.clip(reward2, -1, 1)
         epr += reward
         done = done or episode_length >= 1e4 # don't playing one ep for too long
         info['frames'] += args.batch_size
@@ -314,7 +321,8 @@ if __name__ == "__main__":
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir) 
 # print ('=> Multienvironment settings')
-    envs = MultiEnvironment(args.env, args.batch_size, args.frame_skip)
+    envs1 = MultiEnvironment(args.env1, args.batch_size, args.frame_skip)
+    envs2 = MultiEnvironment(args.env2, args.batch_size, args.frame_skip)
     torch.manual_seed(args.seed)
     torch.cuda.device(args.gpu)
     hypernet = HyperNetwork(args)

@@ -43,6 +43,7 @@ def batch_zero_optim_hn(optim):
     optim['optimG'][3].zero_grad()
     optim['optimG'][4].zero_grad()
     optim['optimG'][5].zero_grad()
+    return optim
 
 
 def batch_update_optim(optimizers):
@@ -133,21 +134,15 @@ def get_policy_weights(args, HyperNet, optim):
     return layers, HyperNet, optim
 
 
-def update_hn(args, loss, HyperNet, optim):
+def update_hn(args, loss, optim):
 
     scaled_loss = (args.beta*loss) #+ z1_loss + z2_loss + z3_loss
     scaled_loss.backward()
     optim['optimE'].step()
     optim['optimG'][0].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[0].parameters(), 20)
     optim['optimG'][1].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[1].parameters(), 20)
     optim['optimG'][2].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[2].parameters(), 20)
     optim['optimG'][3].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[3].parameters(), 20)
     optim['optimG'][4].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[4].parameters(), 20)
     optim['optimG'][5].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[5].parameters(), 20)
-    return HyperNet, optim
+    return optim
