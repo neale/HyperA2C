@@ -6,3 +6,8 @@ models/
 *.swl
 *.txt
 *.avi
+micro/
+sampled_agents/
+breakout-v0/
+pongdeterministic-v0
+tmp/
