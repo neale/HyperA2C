@@ -1,6 +1,7 @@
 import sys
 import args
 import models_small as models
+#import models
 import hypera2c as H
 import utils
 import sample_agent as sample
@@ -53,6 +54,19 @@ class HyperNetwork(object):
                 models.GeneratorW5(args).cuda(),
                 models.GeneratorW6(args).cuda()
                 ]
+
+    def set_test_mode(self):
+        pass
+        #self.encoder.eval()
+        #self.adversary.eval()
+        #for gen in self.generators:
+        #    gen.eval()
+
+    def set_train_mode(self):
+        self.encoder.train()
+        self.adversary.train()
+        for gen in self.generators:
+            gen.train()
 
     def sync(self, H2):
         self.encoder.load_state_dict(H2.encoder.state_dict())
@@ -107,12 +121,15 @@ def load_optim(args, HyperNet):
     if args.test: 
         lr_e, lr_d, lr_g = 0, 0, 0
     else:
-        lr_e, lr_d, lr_g = 5e-4, 1e-4, 1e-4
+        lr_e, lr_d, lr_g = 1e-4, 1e-3, 1e-4
     for p in HyperNet.generators:
-        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.5,.9)))
+        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.5,.999), weight_decay=w))
+
     Optim = { 
-        'optimE': Adam(HyperNet.encoder.parameters(), lr=lr_e, betas=(.5,.9)),
-        'optimD': Adam(HyperNet.adversary.parameters(), lr=lr_d, betas=(.9,.9)),
+        'optimE': Adam(HyperNet.encoder.parameters(), lr=lr_e, betas=(.5,.999),
+            weight_decay=w, eps=1e-8),
+        'optimD': Adam(HyperNet.adversary.parameters(), lr=lr_d, betas=(.9,.999),
+            weight_decay=w),
         'optimG': gen_optim,
         }
     return Optim
@@ -156,8 +173,6 @@ def cost_func(args, values, logps, actions, rewards):
     return (policy_loss, value_loss, entropy_loss)
 
 
-<<<<<<< HEAD
-=======
 def pretrain_e(args, HyperNet, Optim):
     HyperNet.encoder, Optim = H.pretrain_encoder(args, HyperNet.encoder, Optim)
     return HyperNet, Optim
@@ -177,8 +192,7 @@ def saveit(z, model, i):
     torch.save(model.state_dict(), 'sampled_agent_{}.pt'.format(i))
 
 
->>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da
-def train_hyperagent():
+def train_multihyperagent():
     global hypernet, optim
     info = {k: torch.DoubleTensor([0]).share_memory_() for k in ['run_epr', 
         'run_loss', 'episodes', 'frames']}
@@ -189,28 +203,29 @@ def train_hyperagent():
             print ('Loaded Agent')
             info['frames'] += num_frames * 1e6
             print ('reward {} in {} frames'.format(mean_reward, num_frames*1e6))
+    else:
+        if args.pretrain_e:
+            pretrain_e(args, hypernet, optim)
     if int(info['frames'].item()) == 0:
         printlog(args,'', end='', mode='w')
     
     print ('=> loaded HyperGAN networks')
     state_shape = (args.batch_size, 1, 80, 80)
-    state = torch.tensor(envs.reset()).view(state_shape).cuda() # get first state
+    state1 = torch.tensor(envs1.reset()).view(state_shape).cuda() # get first state
+    state2 = torch.tensor(envs2.reset()).view(state_shape).cuda() # get first state
     start_time = last_disp_time = time.time()
     episode_length = np.zeros(args.batch_size)
     epr, eploss = np.zeros(args.batch_size), np.zeros(args.batch_size)
     values, logps, actions, rewards = [], [], [], []
     p_loss, e_loss, v_loss = 0., 0., 0.
+    print ('=> starting training')
     i = 0
     if args.test:
-<<<<<<< HEAD
-        if not args.scratch:
-            envs.set_monitor()
-            envs.envs[0].reset()
-    weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
-=======
         hypernet.set_test_mode()
-        envs.set_monitor()
-        envs.envs[0].reset()
+        envs1.set_monitor()
+        envs2.set_monitor()
+        envs1.envs[0].reset()
+        envs2.envs[0].reset()
     
     if args.sample:
         for i in range(1000):
@@ -218,23 +233,26 @@ def train_hyperagent():
             weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
             saveit(weights, model, i)
     Fmodel = FuncPolicy # a local/unshared model
->>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da
     while info['frames'][0] <= 8e7 or args.test:
         i += 1
         episode_length += 1
         # get network weights
         weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
         # compute the agent response with generated weights
-        value, logit = Fmodel(args, weights, state)
+        value1, logit1 = Fmodel(args, weights, state1)
+        value2, logit2 = Fmodel(args, weights, state2)
         logp = F.log_softmax(logit, dim=-1)
         # print ('=> updating state')
         action = torch.exp(logp).multinomial(num_samples=1).data
-        state, reward, done, _ = envs.step(action)
+        state1, reward1, done1, _ = envs1.step(action)
+        state2, reward2, done2, _ = envs2.step(action)
         if args.render:
             envs.envs[0].render()
 
-        state = torch.tensor(state).view(state_shape).cuda()
-        reward = np.clip(reward, -1, 1)
+        state1 = torch.tensor(state1).view(state_shape).cuda()
+        state2 = torch.tensor(state2).view(state_shape).cuda()
+        reward1 = np.clip(reward1, -1, 1)
+        reward2 = np.clip(reward2, -1, 1)
         epr += reward
         done = done or episode_length >= 1e4 # don't playing one ep for too long
         info['frames'] += args.batch_size
@@ -303,16 +321,11 @@ if __name__ == "__main__":
     if not os.path.exists(args.save_dir):
         os.makedirs(args.save_dir) 
 # print ('=> Multienvironment settings')
-    envs = MultiEnvironment(args.env, args.batch_size, args.frame_skip)
+    envs1 = MultiEnvironment(args.env1, args.batch_size, args.frame_skip)
+    envs2 = MultiEnvironment(args.env2, args.batch_size, args.frame_skip)
     torch.manual_seed(args.seed)
     torch.cuda.device(args.gpu)
-    print ('=> Loading Hyperagent')
     hypernet = HyperNetwork(args)
-    print ('=> Loading Optimizers')
     optim = load_optim(args, hypernet)
-    if args.pretrain_e:
-        print ('==> pretraining encoder to cover pz')
-        hypernet, optim = H.pretrain_encoder(args, hypernet, optim)
-    print ('=> Starting Training')
     train_hyperagent()
 

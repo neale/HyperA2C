@@ -18,6 +18,8 @@ def load_args():
     parser.add_argument('--use_d', default=False, type=int)
     # A3C args
     parser.add_argument('--env', default='PongDeterministic-v4', type=str, help='')
+    parser.add_argument('--env1', default='PongDeterministic-v4', type=str, help='')
+    parser.add_argument('--env2', default='Breakout-v0', type=str, help='')
     parser.add_argument('--processes', default=1, type=int, help='')
     parser.add_argument('--render', default=False, type=bool, help='')
     parser.add_argument('--test', default=False, type=bool, help='')
@@ -32,6 +34,7 @@ def load_args():
     parser.add_argument('--gpu', default=0, type=int, help='')
     parser.add_argument('--exp', default='0', type=str, help='')
     parser.add_argument('--scratch', default=False, type=bool, help='')
+    parser.add_argument('--sample', default=False, type=bool, help='')
     args = parser.parse_args()
     return args
 

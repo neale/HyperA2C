@@ -43,6 +43,7 @@ def batch_zero_optim_hn(optim):
     optim['optimG'][3].zero_grad()
     optim['optimG'][4].zero_grad()
     optim['optimG'][5].zero_grad()
+    return optim
 
 
 def batch_update_optim(optimizers):
@@ -126,7 +127,7 @@ def get_policy_weights(args, HyperNet, optim):
     return layers, HyperNet, optim
 
 
-def update_hn(args, loss, HyperNet, optim):
+def update_hn(args, loss, optim):
 
     scaled_loss =args.beta * loss 
     scaled_loss.backward()
@@ -137,4 +138,8 @@ def update_hn(args, loss, HyperNet, optim):
     optim['optimG'][3].step()
     optim['optimG'][4].step()
     optim['optimG'][5].step()
+<<<<<<< HEAD
     return HyperNet, optim
+=======
+    return optim
+>>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da
