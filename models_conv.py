@@ -1,4 +1,3 @@
-import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -10,11 +9,11 @@ class Encoder(nn.Module):
             setattr(self, k, v)
         self.name = 'Encoder_agent'
         self.linear1 = nn.Linear(self.ze, 512)
-        self.linear2 = nn.Linear(512, 512)
-        self.linear3 = nn.Linear(512, 6*self.z)
+        self.linear2 = nn.Linear(512, 1024)
+        self.linear3 = nn.Linear(1024, 6*self.z)
         self.bn1 = nn.BatchNorm1d(512)
-        self.bn2 = nn.BatchNorm1d(512)
-        self.relu = nn.ELU(inplace=True)
+        self.bn2 = nn.BatchNorm1d(1024)
+        self.relu = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
         # print ('E in: ', x.shape)
@@ -32,44 +31,6 @@ class Encoder(nn.Module):
         # print ('E out: ', x.shape)
         return w1, w2, w3, w4, w5, w6
 
-"""
-class Encoder(nn.Module):
-    def __init__(self, args):
-        super(Encoder, self).__init__()
-        for k, v in vars(args).items():
-            setattr(self, k, v)
-        self.name = 'Encoder_agent'
-        self.conv1 = nn.Conv2d(2, 128, 5, stride=2, padding=2)
-        self.conv2 = nn.Conv2d(128, 256, 5, stride=2, padding=2)
-        self.conv3 = nn.Conv2d(256, 512, 5, stride=2, padding=2)
-        self.conv4 = nn.Conv2d(512, 1024, 5, stride=2, padding=2)
-        self.linear1 = nn.Linear(1024*2*2, 6*self.z)
-        self.bn1 = nn.BatchNorm2d(128)
-        self.bn2 = nn.BatchNorm2d(256)
-        self.bn3 = nn.BatchNorm2d(512)
-        self.bn4 = nn.BatchNorm2d(1024)
-        self.relu = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        # print ('E in: ', x.shape)
-        x = x.view(-1, 2, 16, 16) 
-        x = x + torch.zeros(x.size()).normal_(0.0, 0.01).cuda()
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.relu(self.bn2(self.conv2(x)))
-        x = self.relu(self.bn3(self.conv3(x)))
-        x = self.relu(self.bn4(self.conv4(x)))
-        x = x.view(-1, 1024 * 2 * 2)
-        x = self.linear1(x)
-        x = x.view(-1, 6, self.z)
-        w1 = x[:, 0]
-        w2 = x[:, 1]
-        w3 = x[:, 2]
-        w4 = x[:, 3]
-        w5 = x[:, 4]
-        w6 = x[:, 5]
-        # print ('E out: ', x.shape)
-        return w1, w2, w3, w4, w5, w6
-"""
 
 class DiscriminatorZ(nn.Module):
     def __init__(self, args):
@@ -104,18 +65,24 @@ class GeneratorW1(nn.Module):
         for k, v in vars(args).items():
             setattr(self, k, v)
         self.name = 'GeneratorW1'
-        self.linear1 = nn.Linear(self.z, 256)
-        self.linear2 = nn.Linear(256, 256)
-        self.linear3 = nn.Linear(256, 288)
-        self.bn1 = nn.BatchNorm1d(256)
-        self.bn2 = nn.BatchNorm1d(256)
+        self.conv1 = nn.ConvTranspose2d(1, 4, 3, stride=1, padding=0)
+        self.conv2 = nn.ConvTranspose2d(4, 8, 3, stride=1, padding=0)
+        self.conv3 = nn.ConvTranspose2d(8, 16, 3, stride=1, padding=0)
+        self.bn1 = nn.BatchNorm2d(4)
+        self.bn2 = nn.BatchNorm2d(8)
         self.relu = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
-        #print ('W1 in: ', x.shape)
-        x = self.relu(self.bn1(self.linear1(x)))
-        x = self.relu(self.bn2(self.linear2(x)))
+        print ('W1 in: ', x.shape)
+        x = x.view(-1, 1, 32, 32) 
+        x = self.relu(self.bn1(self.conv1(x)))
+        print (x.shape)
+        x = self.relu(self.bn2(self.conv2(x)))
+        print (x.shape)
         x = self.linear3(x)
+        print (x.shape)
+        import sys
+        sys.exit(0)
         #x = self.linear4(x)
         x = x.view(-1, 32, 1, 3, 3)
         #print ('W1 out: ', x.shape)
@@ -218,7 +185,7 @@ class GeneratorW5(nn.Module):
         self.bn2 = nn.BatchNorm1d(512)
         self.relu = nn.LeakyReLU(inplace=True)
 
-    def forward(self, x):
+    def forward(self, z, state):
         #print ('W4 in : ', x.shape)
         x = self.relu(self.bn1(self.linear1(x)))
         x = self.relu(self.bn2(self.linear2(x)))
@@ -244,7 +211,7 @@ class GeneratorW6(nn.Module):
         self.bn3 = nn.BatchNorm1d(2048)
         self.relu = nn.LeakyReLU(inplace=True)
 
-    def forward(self, x):
+    def forward(self, z, state):
         #print ('W4 in : ', x.shape)
         x = self.relu(self.bn1(self.linear1(x)))
         x = self.relu(self.bn2(self.linear2(x)))

@@ -1,7 +1,6 @@
 import sys
 import args
 import models_small as models
-#import models
 import hypera2c as H
 import utils
 from atari_data import MultiEnvironment
@@ -53,19 +52,6 @@ class HyperNetwork(object):
                 models.GeneratorW5(args).cuda(),
                 models.GeneratorW6(args).cuda()
                 ]
-
-    def set_test_mode(self):
-        pass
-        #self.encoder.eval()
-        #self.adversary.eval()
-        #for gen in self.generators:
-        #    gen.eval()
-
-    def set_train_mode(self):
-        self.encoder.train()
-        self.adversary.train()
-        for gen in self.generators:
-            gen.train()
 
     def sync(self, H2):
         self.encoder.load_state_dict(H2.encoder.state_dict())
@@ -120,15 +106,12 @@ def load_optim(args, HyperNet):
     if args.test: 
         lr_e, lr_d, lr_g = 0, 0, 0
     else:
-        lr_e, lr_d, lr_g = 1e-4, 1e-3, 1e-4
+        lr_e, lr_d, lr_g = 5e-4, 1e-4, 1e-4
     for p in HyperNet.generators:
-        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.5,.999), weight_decay=w))
-
+        gen_optim.append(Adam(p.parameters(), lr=lr_g, betas=(.5,.9)))
     Optim = { 
-        'optimE': Adam(HyperNet.encoder.parameters(), lr=lr_e, betas=(.5,.999),
-            weight_decay=w, eps=1e-8),
-        'optimD': Adam(HyperNet.adversary.parameters(), lr=lr_d, betas=(.9,.999),
-            weight_decay=w),
+        'optimE': Adam(HyperNet.encoder.parameters(), lr=lr_e, betas=(.5,.9)),
+        'optimD': Adam(HyperNet.adversary.parameters(), lr=lr_d, betas=(.9,.9)),
         'optimG': gen_optim,
         }
     return Optim
@@ -172,11 +155,6 @@ def cost_func(args, values, logps, actions, rewards):
     return (policy_loss, value_loss, entropy_loss)
 
 
-def pretrain_e(args, HyperNet, Optim):
-    HyperNet.encoder, Optim = H.pretrain_encoder(args, HyperNet.encoder, Optim)
-    return HyperNet, Optim
-
-
 def train_hyperagent():
     global hypernet, optim
     info = {k: torch.DoubleTensor([0]).share_memory_() for k in ['run_epr', 
@@ -188,9 +166,6 @@ def train_hyperagent():
             print ('Loaded Agent')
             info['frames'] += num_frames * 1e6
             print ('reward {} in {} frames'.format(mean_reward, num_frames*1e6))
-    else:
-        if args.pretrain_e:
-            pretrain_e(args, hypernet, optim)
     if int(info['frames'].item()) == 0:
         printlog(args,'', end='', mode='w')
 
@@ -203,12 +178,12 @@ def train_hyperagent():
     epr, eploss = np.zeros(args.batch_size), np.zeros(args.batch_size)
     values, logps, actions, rewards = [], [], [], []
     p_loss, e_loss, v_loss = 0., 0., 0.
-    print ('=> starting training')
     i = 0
     if args.test:
-        hypernet.set_test_mode()
-        envs.set_monitor()
-        envs.envs[0].reset()
+        if not args.scratch:
+            envs.set_monitor()
+            envs.envs[0].reset()
+    weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
     while info['frames'][0] <= 8e7 or args.test:
         i += 1
         episode_length += 1
@@ -299,7 +274,13 @@ if __name__ == "__main__":
     envs = MultiEnvironment(args.env, args.batch_size, args.frame_skip)
     torch.manual_seed(args.seed)
     torch.cuda.device(args.gpu)
+    print ('=> Loading Hyperagent')
     hypernet = HyperNetwork(args)
+    print ('=> Loading Optimizers')
     optim = load_optim(args, hypernet)
+    if args.pretrain_e:
+        print ('==> pretraining encoder to cover pz')
+        hypernet, optim = H.pretrain_encoder(args, hypernet, optim)
+    print ('=> Starting Training')
     train_hyperagent()
 

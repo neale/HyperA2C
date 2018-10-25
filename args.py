@@ -3,8 +3,8 @@ import argparse
 def load_args():
     # HyperGAN args
     parser = argparse.ArgumentParser(description='param-wgan')
-    parser.add_argument('-z', '--z', default=512, type=int, help='latent space width')
-    parser.add_argument('-ze', '--ze', default=512, type=int, help='encoder dimension')
+    parser.add_argument('-z', '--z', default=128, type=int, help='latent space width')
+    parser.add_argument('-ze', '--ze', default=256, type=int, help='encoder dimension')
     parser.add_argument('-g', '--gp', default=10, type=int, help='gradient penalty')
     parser.add_argument('-b', '--batch_size', default=20, type=int)
     parser.add_argument('-e', '--epochs', default=200000, type=int)
@@ -15,6 +15,7 @@ def load_args():
     parser.add_argument('--use_x', default=False, type=bool, help='sample from real layers')
     parser.add_argument('--pretrain_e', default=False, type=bool)
     parser.add_argument('--n_actions', default=6, type=int)
+    parser.add_argument('--use_d', default=False, type=int)
     # A3C args
     parser.add_argument('--env', default='PongDeterministic-v4', type=str, help='')
     parser.add_argument('--processes', default=1, type=int, help='')

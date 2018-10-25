@@ -1,3 +1,4 @@
+import torch
 from torch import nn
 from torch.nn import functional as F
 
@@ -9,15 +10,18 @@ class Encoder(nn.Module):
             setattr(self, k, v)
         self.name = 'Encoder_agent'
         self.linear1 = nn.Linear(self.ze, 512)
-        self.linear2 = nn.Linear(512, 6*self.z)
+        self.linear2 = nn.Linear(512, 512)
+        self.linear3 = nn.Linear(512, 6*self.z)
         self.bn1 = nn.BatchNorm1d(512)
-        self.relu = nn.ELU(inplace=True)
+        self.bn2 = nn.BatchNorm1d(512)
+        self.relu = nn.LeakyReLU(inplace=True)
 
     def forward(self, x):
         # print ('E in: ', x.shape)
         x = x.view(-1, self.ze) #flatten filter size
         x = self.relu(self.bn1(self.linear1(x)))
-        x = self.linear2(x)
+        x = self.relu(self.bn2(self.linear2(x)))
+        x = self.linear3(x)
         x = x.view(-1, 6, self.z)
         w1 = x[:, 0]
         w2 = x[:, 1]
@@ -36,10 +40,9 @@ class DiscriminatorZ(nn.Module):
             setattr(self, k, v)
         
         self.name = 'Discriminator_z'
-        self.linear1 = nn.Linear(self.z, 1024)
-        self.linear2 = nn.Linear(1024, 1024)
-        self.linear3 = nn.Linear(1024, 1024)
-        self.linear4 = nn.Linear(1024, 1)
+        self.linear1 = nn.Linear(self.z, 512)
+        self.linear2 = nn.Linear(512, 512)
+        self.linear3 = nn.Linear(512, 1)
         self.relu = nn.ReLU(inplace=True)
         self.sigmoid = nn.Sigmoid()
 
@@ -48,8 +51,7 @@ class DiscriminatorZ(nn.Module):
         x = x.view(self.batch_size, -1)
         x = self.relu(self.linear1(x))
         x = self.relu(self.linear2(x))
-        x = self.relu(self.linear3(x))
-        x = self.linear4(x)
+        x = self.linear3(x)
         x = self.sigmoid(x)
         # print ('Dz out: ', x.shape)
         return x
@@ -158,7 +160,7 @@ class GeneratorW5(nn.Module):
         self.linear1 = nn.Linear(self.z, 512)
         self.linear2 = nn.Linear(512, 800)
         self.bn1 = nn.BatchNorm1d(512)
-        self.relu = nn.ELU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         #print ('W4 in : ', x.shape)
@@ -181,7 +183,7 @@ class GeneratorW6(nn.Module):
         self.linear3 = nn.Linear(2048, 800*self.n_actions)
         self.bn1 = nn.BatchNorm1d(1024)
         self.bn2 = nn.BatchNorm1d(2048)
-        self.relu = nn.ELU(inplace=True)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         #print ('W4 in : ', x.shape)

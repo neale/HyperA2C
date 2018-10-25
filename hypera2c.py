@@ -61,45 +61,43 @@ def frozen_params(nets):
             p.requires_grad = False
 
 
-def pretrain_loss(encoded, noise):
-    mean_z = torch.mean(noise, dim=0, keepdim=True)
-    mean_e = torch.mean(encoded, dim=0, keepdim=True)
-    mean_loss = F.mse_loss(mean_z, mean_e)
+def pretrain_loss(encoding, prior):
+    mean_p = torch.mean(prior, dim=0, keepdim=True)
+    mean_q = torch.mean(encoding, dim=0, keepdim=True)
+    mean_loss = F.mse_loss(mean_p, mean_q)
 
-    cov_z = torch.matmul((noise-mean_z).transpose(0, 1), noise-mean_z)
-    cov_z /= 999
-    cov_e = torch.matmul((encoded-mean_e).transpose(0, 1), encoded-mean_e)
-    cov_e /= 999
-    cov_loss = F.mse_loss(cov_z, cov_e)
+    cov_p = torch.matmul((prior-mean_p).transpose(0, 1), prior-mean_p)
+    cov_p /= 1000 - 1
+    cov_q = torch.matmul((encoding-mean_q).transpose(0, 1), encoding-mean_q)
+    cov_q /= 1000 - 1
+    cov_loss = F.mse_loss(cov_p, cov_q)
     return mean_loss, cov_loss
 
 
-def pretrain_encoder(args, E, optim):
-
+def pretrain_encoder(args, HyperNet, optim):
     j = 0
     final = 100.
     e_batch_size = 1000
     x_dist = create_d(args.ze)
     z_dist = create_d(args.z)
-    for j in range(1000):
+    for j in range(500):
         x = sample_d(x_dist, e_batch_size)
         z = sample_d(z_dist, e_batch_size)
-        codes = E(x)
+        codes = HyperNet.encoder(x)
         for i, code in enumerate(codes):
             code = code.view(e_batch_size, args.z)
             mean_loss, cov_loss = pretrain_loss(code, z)
             loss = mean_loss + cov_loss
             loss.backward(retain_graph=True)
         optim['optimE'].step()
-        E.zero_grad()
-        optim['optimE'].zero_grad()
+        HyperNet.encoder.zero_grad()
         print ('Pretrain Enc iter: {}, Mean Loss: {}, Cov Loss: {}'.format(
             j, mean_loss.item(), cov_loss.item()))
         final = loss.item()
         if loss.item() < 0.1:
             print ('Finished Pretraining Encoder')
             break
-    return E, optim
+    return HyperNet, optim
 
 
 def get_policy_weights(args, HyperNet, optim):
@@ -112,11 +110,9 @@ def get_policy_weights(args, HyperNet, optim):
     layers = []
     # decompress to full parameter shape
     for (code, gen) in zip(codes, HyperNet.generators):
-        layers.append(gen(code).mean(0))
+        rand = np.random.randint(args.batch_size)
+        layers.append(gen(code)[rand])
     # Z Adversary 
-    """
-    free_params([HyperNet.adversary])
-    frozen_params([HyperNet.encoder] + HyperNet.generators)
     for code in codes:
         noise = sample_d(z_dist, args.batch_size)
         d_real = HyperNet.adversary(noise)
@@ -127,27 +123,18 @@ def get_policy_weights(args, HyperNet, optim):
         d_fake_loss.backward(retain_graph=True)
         d_loss = d_real_loss + d_fake_loss
     optim['optimD'].step()
-    free_params([HyperNet.encoder] + HyperNet.generators)
-    frozen_params([HyperNet.adversary])
-    """
     return layers, HyperNet, optim
 
 
 def update_hn(args, loss, HyperNet, optim):
 
-    scaled_loss = (args.beta*loss) #+ z1_loss + z2_loss + z3_loss
+    scaled_loss =args.beta * loss 
     scaled_loss.backward()
     optim['optimE'].step()
     optim['optimG'][0].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[0].parameters(), 20)
     optim['optimG'][1].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[1].parameters(), 20)
     optim['optimG'][2].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[2].parameters(), 20)
     optim['optimG'][3].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[3].parameters(), 20)
     optim['optimG'][4].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[4].parameters(), 20)
     optim['optimG'][5].step()
-    #torch.nn.utils.clip_grad_norm_(HyperNet.generators[5].parameters(), 20)
     return HyperNet, optim
