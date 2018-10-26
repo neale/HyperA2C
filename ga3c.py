@@ -3,7 +3,6 @@ import args
 import models_small as models
 import hypera2c as H
 import utils
-import sample_agent as sample
 from atari_data import MultiEnvironment
 
 import warnings
@@ -207,11 +206,6 @@ def train_hyperagent():
         envs.set_monitor()
         envs.envs[0].reset()
     
-    if args.sample:
-        for i in range(1000):
-            model = sample.Agent(args.n_actions).cuda()
-            weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
-            saveit(weights, model, i)
     Fmodel = FuncPolicy # a local/unshared model
     while info['frames'][0] <= 8e7 or args.test:
         i += 1
