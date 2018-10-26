@@ -129,7 +129,7 @@ def get_policy_weights(args, HyperNet, optim):
 
 def update_hn(args, loss, optim):
 
-    scaled_loss =args.beta * loss 
+    scaled_loss = args.beta * loss 
     scaled_loss.backward()
     optim['optimE'].step()
     optim['optimG'][0].step()
@@ -138,8 +138,4 @@ def update_hn(args, loss, optim):
     optim['optimG'][3].step()
     optim['optimG'][4].step()
     optim['optimG'][5].step()
-<<<<<<< HEAD
-    return HyperNet, optim
-=======
     return optim
->>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da

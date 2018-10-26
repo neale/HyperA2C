@@ -156,8 +156,6 @@ def cost_func(args, values, logps, actions, rewards):
     return (policy_loss, value_loss, entropy_loss)
 
 
-<<<<<<< HEAD
-=======
 def pretrain_e(args, HyperNet, Optim):
     HyperNet.encoder, Optim = H.pretrain_encoder(args, HyperNet.encoder, Optim)
     return HyperNet, Optim
@@ -177,7 +175,6 @@ def saveit(z, model, i):
     torch.save(model.state_dict(), 'sampled_agent_{}.pt'.format(i))
 
 
->>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da
 def train_hyperagent():
     global hypernet, optim
     info = {k: torch.DoubleTensor([0]).share_memory_() for k in ['run_epr', 
@@ -202,12 +199,10 @@ def train_hyperagent():
     p_loss, e_loss, v_loss = 0., 0., 0.
     i = 0
     if args.test:
-<<<<<<< HEAD
         if not args.scratch:
             envs.set_monitor()
             envs.envs[0].reset()
-    weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
-=======
+        weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
         hypernet.set_test_mode()
         envs.set_monitor()
         envs.envs[0].reset()
@@ -218,7 +213,6 @@ def train_hyperagent():
             weights, hypernet, optim = H.get_policy_weights(args, hypernet, optim)
             saveit(weights, model, i)
     Fmodel = FuncPolicy # a local/unshared model
->>>>>>> 7e140acd4f1b56ce5754e65fe3d85750092e28da
     while info['frames'][0] <= 8e7 or args.test:
         i += 1
         episode_length += 1
