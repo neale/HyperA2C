@@ -1,4 +1,0 @@
-
-frames 0.0M, mean epr -20.96, run loss 371792.38
-frames 0.0M, mean epr -20.78, run loss 383115.54
-frames 0.1M, mean epr -20.72, run loss 390228.35
