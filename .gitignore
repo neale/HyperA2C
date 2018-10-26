@@ -11,3 +11,8 @@ sampled_agents/
 breakout-v0/
 pongdeterministic-v0
 tmp/
+micro/
+*.swp
+*.swn
+*.swo
+
